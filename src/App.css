@@ -112,3 +112,13 @@ sup {
     border-radius: 50%;
     padding: 0 7px;
 }
+
+@media only screen and (max-width: 768px) {
+    .text-daily {
+        margin-top: 20px;
+    }
+
+    .container-two {
+        margin-top: 20px;
+    }
+}

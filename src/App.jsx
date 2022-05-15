@@ -35,12 +35,17 @@ export default function App() {
     // function section
     // get current weather
     async function getCurrentWeather() {
+        // get city on local storage
+        const cityName = !getLocalStorage("city")
+            ? "jakarta"
+            : getLocalStorage("city");
+
         // do loading
         setLoading(true);
 
         // do request
         const currentResponse = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?q=jakarta&units=metric&appid=${API_KEY}&lang=id`
+            `https://api.openweathermap.org/data/2.5/weather?q=${cityName}&units=metric&appid=${API_KEY}&lang=id`
         )
             .finally(() => setLoading(false))
             .then((response) => response.json());
@@ -56,7 +61,7 @@ export default function App() {
 
         // set state
         setWeather(currentResponse);
-        setTimeout(() => setDaily(dailyResponse), 1200);
+        setTimeout(() => setDaily(dailyResponse), 1000);
     }
 
     // search city
@@ -71,6 +76,9 @@ export default function App() {
 
         // do loading
         setLoading(true);
+
+        // add to localstorage
+        setLocalStorage("city", city);
 
         // do request
         const currentResponse = await fetch(
@@ -148,6 +156,35 @@ export default function App() {
         const date = time.getDate();
 
         return `${day}, ${date} ${month}`;
+    }
+
+    // set local storage with expiry
+    function setLocalStorage(key, value) {
+        const now = new Date();
+        const ttl = 500000; // 8 minutes
+
+        const item = {
+            value,
+            expiry: now.getTime() + ttl,
+        };
+
+        localStorage.setItem(key, JSON.stringify(item));
+    }
+
+    // get local storage
+    function getLocalStorage(key) {
+        const itemStr = localStorage.getItem(key);
+
+        if (!itemStr) return null;
+
+        const item = JSON.parse(itemStr);
+        const now = new Date();
+        if (now.getTime() > item.expiry) {
+            localStorage.removeItem(key);
+            return;
+        }
+
+        return item.value;
     }
 
     // check weather
@@ -283,7 +320,7 @@ export default function App() {
                     className="row mt-5"
                     style={{ color: "var(--white)", textAlign: "center" }}
                 >
-                    <div className="col-md-6">
+                    <div className="col-md-6 container-one">
                         <div className="row">
                             <div className="col-3">
                                 <div className="row">
@@ -349,7 +386,7 @@ export default function App() {
                             </div>
                         </div>
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-6 container-two">
                         <div className="row">
                             <div className="col-3">
                                 <div className="row">
