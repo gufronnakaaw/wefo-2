@@ -77,9 +77,6 @@ export default function App() {
         // do loading
         setLoading(true);
 
-        // add to localstorage
-        setLocalStorage("city", city);
-
         // do request
         const currentResponse = await fetch(
             `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${API_KEY}&lang=id`
@@ -90,6 +87,9 @@ export default function App() {
         if (currentResponse.cod !== 200) {
             return setError(currentResponse.message);
         }
+
+        // add to localstorage
+        setLocalStorage("city", city);
 
         // do loading
         setDaily(null);
