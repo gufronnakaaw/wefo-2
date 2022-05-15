@@ -15,6 +15,7 @@ import "./App.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 export default function App() {
+    // state section
     const [weather, setWeather] = useState(null);
     const [city, setCity] = useState("");
     const [error, setError] = useState(null);
@@ -23,32 +24,43 @@ export default function App() {
 
     const API_KEY = import.meta.env.VITE_API_KEY;
 
+    // change background color
     document.body.style.background = "var(--navy)";
 
     // on first render
-    useEffect(() => {
-        setLoading(true);
-
-        fetch(
-            `https://api.openweathermap.org/data/2.5/weather?q=jakarta&units=metric&appid=${API_KEY}&lang=id`
-        )
-            .finally(() => {
-                setLoading(false);
-            })
-            .then((response) => response.json())
-            .then((result) => {
-                if (result.cod === 200) {
-                    console.log(result);
-                    setWeather(result);
-                }
-
-                if (result.cod >= 400 && result.cod < 500) {
-                    return setError(result.message);
-                }
-            });
+    useEffect(function () {
+        getCurrentWeather();
     }, []);
 
-    function searchCity() {
+    // function section
+    // get current weather
+    async function getCurrentWeather() {
+        // do loading
+        setLoading(true);
+
+        // do request
+        const currentResponse = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?q=jakarta&units=metric&appid=${API_KEY}&lang=id`
+        )
+            .finally(() => setLoading(false))
+            .then((response) => response.json());
+
+        if (currentResponse.cod !== 200) {
+            return setError(currentResponse.message);
+        }
+
+        // do request
+        const dailyResponse = await fetch(
+            `https://api.openweathermap.org/data/2.5/onecall?lat=${currentResponse.coord.lat}&lon=${currentResponse.coord.lon}&exclude=minutely,hourly&units=metric&appid=${API_KEY}&lang=id`
+        ).then((response) => response.json());
+
+        // set state
+        setWeather(currentResponse);
+        setTimeout(() => setDaily(dailyResponse), 1200);
+    }
+
+    // search city
+    async function searchCity() {
         // check empty
         if (city === "") {
             return setError("Cannot be empty");
@@ -57,25 +69,35 @@ export default function App() {
         // remove text in input and remove error
         setError(null);
 
+        // do loading
         setLoading(true);
-        fetch(
+
+        // do request
+        const currentResponse = await fetch(
             `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${API_KEY}&lang=id`
         )
-            .finally(() => {
-                setLoading(false);
-            })
-            .then((response) => response.json())
-            .then((result) => {
-                if (result.cod === 200) {
-                    console.log(result);
-                }
+            .finally(() => setLoading(false))
+            .then((response) => response.json());
 
-                if (result.cod >= 400 && result.cod < 500) {
-                    return setError(result.message);
-                }
-            });
+        if (currentResponse.cod !== 200) {
+            return setError(currentResponse.message);
+        }
+
+        // do loading
+        setDaily(null);
+
+        // do request
+        const dailyResponse = await fetch(
+            `https://api.openweathermap.org/data/2.5/onecall?lat=${currentResponse.coord.lat}&lon=${currentResponse.coord.lon}&exclude=minutely,hourly&units=metric&appid=${API_KEY}&lang=id`
+        ).then((response) => response.json());
+
+        // set state
+        setWeather(currentResponse);
+        setDaily(dailyResponse);
+        setCity("");
     }
 
+    // handle input search
     function handleKeyUp(e) {
         if (e.key === "Enter") {
             // check empty
@@ -85,17 +107,50 @@ export default function App() {
 
             // remove text in input and remove error
             setError(null);
+
+            // do search city
+            searchCity();
         }
     }
 
+    // convert time
     function convertTime(ms) {
         const time = new Date(ms);
         const hour = time.getHours();
         const minutes = time.getMinutes();
 
-        return `${hour}:${minutes}`;
+        return `${hour < 10 ? `0${hour}` : hour}:${
+            minutes < 10 ? `0${minutes}` : minutes
+        }`;
     }
 
+    // convert date
+    function convertDate(ms) {
+        const daysName = ["Sun", "Mon", "Teu", "Wed", "Thu", "Fri", "Sat"];
+        const monthsName = [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+        ];
+
+        const time = new Date(ms);
+        const day = daysName[time.getDay()];
+        const month = monthsName[time.getMonth()];
+        const date = time.getDate();
+
+        return `${day}, ${date} ${month}`;
+    }
+
+    // check weather
     if (!weather) return null;
 
     const sunrise = convertTime(weather.sys.sunrise * 1000);
@@ -110,7 +165,7 @@ export default function App() {
     const country = weather.sys.country;
     const humidity = weather.main.humidity;
     const pressure = weather.main.pressure;
-    const visibility = weather.visibility / 1000;
+    const visibility = Math.round(weather.visibility / 1000);
     const wind = Math.round(weather.wind.speed);
 
     return (
@@ -154,7 +209,7 @@ export default function App() {
                 </div>
 
                 <div className="row">
-                    <div className="col-md-8">
+                    <div className="col-md-7">
                         <div className="current-weather-container py-4">
                             <div className="current-city">
                                 {name}
@@ -174,14 +229,14 @@ export default function App() {
                             </div>
                         </div>
                     </div>
-                    <div className="col-md-4">
+                    <div className="col-md-5">
                         <div className="col-12 text-center mb-3">
                             <h5 className="text-white text-daily">
                                 Daily Weather
                             </h5>
                         </div>
                         <div className="daily-weather-container">
-                            {loading ? (
+                            {!daily ? (
                                 <div
                                     style={{
                                         color: "var(--grey)",
@@ -192,55 +247,32 @@ export default function App() {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="daily-weather-item">
-                                        <div className="col-md-4">
-                                            Fri, 13 May
-                                        </div>
-                                        <div className="col-md-4">asdj</div>
-                                        <div className="col-md-4">28-30</div>
-                                    </div>
-                                    <div className="daily-weather-item">
-                                        <div className="col-md-4">
-                                            Fri, 13 May
-                                        </div>
-                                        <div className="col-md-4">asdj</div>
-                                        <div className="col-md-4">28-30</div>
-                                    </div>
-                                    <div className="daily-weather-item">
-                                        <div className="col-md-4">
-                                            Fri, 13 May
-                                        </div>
-                                        <div className="col-md-4">asdj</div>
-                                        <div className="col-md-4">28-30</div>
-                                    </div>
-                                    <div className="daily-weather-item">
-                                        <div className="col-md-4">
-                                            Fri, 13 May
-                                        </div>
-                                        <div className="col-md-4">asdj</div>
-                                        <div className="col-md-4">28-30</div>
-                                    </div>
-                                    <div className="daily-weather-item">
-                                        <div className="col-md-4">
-                                            Fri, 13 May
-                                        </div>
-                                        <div className="col-md-4">asdj</div>
-                                        <div className="col-md-4">28-30</div>
-                                    </div>
-                                    <div className="daily-weather-item">
-                                        <div className="col-md-4">
-                                            Fri, 13 May
-                                        </div>
-                                        <div className="col-md-4">asdj</div>
-                                        <div className="col-md-4">28-30</div>
-                                    </div>
-                                    <div className="daily-weather-item">
-                                        <div className="col-md-4">
-                                            Fri, 13 May
-                                        </div>
-                                        <div className="col-md-4">asdj</div>
-                                        <div className="col-md-4">28-30</div>
-                                    </div>
+                                    {daily.daily.map((obj, index) => {
+                                        return (
+                                            <div
+                                                className="daily-weather-item"
+                                                key={index}
+                                            >
+                                                <div className="col-md-4">
+                                                    {convertDate(obj.dt * 1000)}
+                                                </div>
+                                                <div className="col-md-4">
+                                                    <img
+                                                        src={`http://openweathermap.org/img/wn/${obj.weather[0].icon}.png`}
+                                                        alt={`icon ${obj.weather[0].description}`}
+                                                    />
+                                                </div>
+                                                <div className="col-md-4">
+                                                    {`${Math.round(
+                                                        obj.temp.min
+                                                    )}~${Math.round(
+                                                        obj.temp.max
+                                                    )}`}
+                                                    &#176;C
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </>
                             )}
                         </div>
